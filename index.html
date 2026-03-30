@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vault Messenger | Web 4.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); }
+        body { background: #0f172a; color: white; font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex flex-col items-center min-h-screen">
+
+    <div class="w-full max-w-md glass border border-slate-700 rounded-2xl p-6 shadow-2xl">
+        <header class="mb-6 text-center">
+            <h1 class="text-2xl font-bold text-cyan-400">VAULT MESSENGER</h1>
+            <p class="text-xs text-slate-400 uppercase tracking-widest">End-to-End Caesar Encryption</p>
+        </header>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1 text-slate-300">Secret Privacy Key (0-25)</label>
+            <input type="number" id="shiftKey" value="7" min="0" max="25" 
+                   class="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 focus:ring-2 focus:ring-cyan-500 outline-none">
+        </div>
+
+        <div id="chatBox" class="h-64 overflow-y-auto bg-slate-900/50 rounded-lg p-4 mb-4 border border-slate-800 flex flex-col gap-2">
+            <div class="text-slate-500 text-center text-sm mt-10">Messages are encrypted. Enter key to read.</div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <textarea id="messageInput" placeholder="Type your secret message..." 
+                      class="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-cyan-500 outline-none h-20"></textarea>
+            <button onclick="sendMessage()" 
+                    class="w-full bg-cyan-600 hover:bg-cyan-500 transition-colors font-bold py-3 rounded-lg shadow-lg">
+                ENCRYPT & SEND
+            </button>
+        </div>
+
+        <button onclick="clearChat()" class="mt-4 text-xs text-slate-500 hover:text-red-400 underline w-full text-center">
+            Clear Local History
+        </button>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const messageInput = document.getElementById('messageInput');
+        const shiftKey = document.getElementById('shiftKey');
+
+        // The Core Logic: Caesar Cipher
+        function runCipher(text, shift) {
+            return text.split('').map(char => {
+                if (char.match(/[a-z]/i)) {
+                    const code = char.charCodeAt(0);
+                    const start = code >= 65 && code <= 90 ? 65 : 97;
+                    return String.fromCharCode(((code - start + shift) % 26 + 26) % 26 + start);
+                }
+                return char;
+            }).join('');
+        }
+
+        function loadMessages() {
+            chatBox.innerHTML = '';
+            const messages = JSON.parse(localStorage.getItem('vault_messages') || '[]');
+            const currentKey = parseInt(shiftKey.value) || 0;
+
+            messages.forEach(msg => {
+                const decryptedText = runCipher(msg.text, -currentKey);
+                const msgDiv = document.createElement('div');
+                msgDiv.className = "p-3 rounded-lg max-w-[80%] " + (msg.self ? "bg-cyan-900/30 self-end border border-cyan-700" : "bg-slate-800 self-start border border-slate-700");
+                
+                msgDiv.innerHTML = `
+                    <p class="text-xs text-slate-400 mb-1">Encrypted: ${msg.text}</p>
+                    <p class="text-white font-medium">${decryptedText}</p>
+                `;
+                chatBox.appendChild(msgDiv);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            const key = parseInt(shiftKey.value) || 0;
+            if (!text) return;
+
+            const encryptedText = runCipher(text, key);
+            const messages = JSON.parse(localStorage.getItem('vault_messages') || '[]');
+            
+            messages.push({ text: encryptedText, self: true });
+            localStorage.setItem('vault_messages', JSON.stringify(messages));
+            
+            messageInput.value = '';
+            loadMessages();
+        }
+
+        function clearChat() {
+            if(confirm("Delete all messages?")) {
+                localStorage.removeItem('vault_messages');
+                loadMessages();
+            }
+        }
+
+        // Reload messages when key changes
+        shiftKey.addEventListener('input', loadMessages);
+
+        // Initial Load
+        loadMessages();
+    </script>
+</body>
+</html>
